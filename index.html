@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloudflare Pages Proxy Browser</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; height: 100vh; overflow: hidden; background: #f8f9fa; }
+    #address-bar {
+      position: fixed; top: 0; left: 0; right: 0; background: white; border-bottom: 1px solid #e0e0e0;
+      padding: 12px 20px; display: flex; gap: 10px; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.1); z-index: 100;
+    }
+    #url-input {
+      flex: 1; padding: 12px 16px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;
+      outline: none; transition: border-color 0.2s;
+    }
+    #url-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    #go-btn {
+      padding: 12px 24px; background: #3b82f6; color: white; border: none; border-radius: 8px;
+      cursor: pointer; font-size: 16px; font-weight: 500; transition: background 0.2s;
+    }
+    #go-btn:hover { background: #2563eb; }
+    #frame {
+      width: 100vw; height: calc(100vh - 64px); border: none; background: white;
+      position: relative; top: 64px; left: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="address-bar">
+    <input type="text" id="url-input" placeholder="Enter URL (e.g., intel.com or https://instagram.com)" value="https://www.intel.com">
+    <button id="go-btn">Go</button>
+  </div>
+  <iframe id="frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation allow-downloads"></iframe>
+
+  <script>
+    const urlInput = document.getElementById('url-input');
+    const goBtn = document.getElementById('go-btn');
+    const frame = document.getElementById('frame');
+    const PROXY_BASE = '/p/';  // Pages Function proxy path
+
+    const loadUrl = (inputUrl = 'https://www.google.com') => {
+      try {
+        const url = new URL(inputUrl.startsWith('http') ? inputUrl : 'https://' + inputUrl);
+        const encodedTarget = encodeURIComponent(url.href);
+        frame.src = PROXY_BASE + encodedTarget;
+        urlInput.value = url.href;
+      } catch (e) {
+        alert('Invalid URL! Use https://example.com');
+      }
+    };
+
+    urlInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') loadUrl(urlInput.value); });
+    goBtn.addEventListener('click', () => loadUrl(urlInput.value));
+
+    // Load initial
+    loadUrl();
+  </script>
+</body>
+</html>

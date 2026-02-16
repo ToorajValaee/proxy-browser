@@ -1,0 +1,97 @@
+// Cloudflare Pages Function: Proxies ANY URL through Cloudflare edge servers
+// Matches /p/https%3A%2F%2Fwww.intel.com (etc.)
+export default {
+  async fetch(request, env, ctx, data) {
+    const targetParam = data.params.target;
+    if (!targetParam) {
+      return new Response('Missing target URL', { status: 400 });
+    }
+
+    const targetUrl = decodeURIComponent(targetParam);
+    try {
+      // Create proxied request
+      const proxyReq = new Request(targetUrl, {
+        method: request.method,
+        headers: {
+          ...Object.fromEntries(request.headers.entries()),
+          // Sanitize/forward useful headers
+          'User-Agent': request.headers.get('User-Agent') || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': request.headers.get('Accept') || '*/*',
+          'Accept-Language': request.headers.get('Accept-Language') || 'en-US,en;q=0.9',
+          'Referer': targetUrl,  // Fake referer
+        },
+        body: request.body,
+        redirect: 'follow',
+      });
+
+      let response = await fetch(proxyReq);
+
+      // Clone response for transform
+      response = new Response(response.body, response);
+
+      const contentType = response.headers.get('Content-Type') || '';
+      if (contentType.startsWith('text/html') || contentType.includes('xml')) {
+        // Rewrite HTML/CSS for proxy-relative links
+        return htmlRewriter(request.url).transform(response);
+      }
+
+      // Other assets (JS/CSS/img): Add CORS + passthrough
+      const newRes = new Response(response.body, response);
+      newRes.headers.set('Access-Control-Allow-Origin', '*');
+      newRes.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      newRes.headers.delete('X-Frame-Options');  // Help with any remaining frames
+      return newRes;
+
+    } catch (error) {
+      return new Response(`Proxy failed: ${error.message}\n\nTarget: ${targetUrl}`, { status: 502 });
+    }
+  },
+};
+
+// HTML Rewriter: Rewrite links/src to proxy
+function htmlRewriter(baseUrl) {
+  const proxyBase = new URL(baseUrl).origin + '/p/';
+  return new HTMLRewriter()
+    .on('a[href], link[href], script[src], img[src], source[src], embed[src], iframe[src], form[action]', {
+      element(element) {
+        const attr = element.tagName === 'form' ? 'action' : element.getAttribute('href') || element.getAttribute('src') ? 'href' || 'src' : null;
+        if (!attr) return;
+        const value = element.getAttribute(attr);
+        if (!value) return;
+        try {
+          const url = new URL(value, targetUrlFromBase(value, baseUrl));  // Resolve relative
+          element.setAttribute(attr, proxyBase + encodeURIComponent(url.href));
+        } catch (e) {
+          // Ignore invalid URLs
+        }
+      }
+    })
+    .on('*[style]', {
+      element(element) {
+        const style = element.getAttribute('style') || '';
+        element.setAttribute('style', rewriteStyleUrls(style, proxyBase));
+      }
+    })
+    .on('base[href]', {
+      element(element) {
+        element.remove();  // Remove <base> to avoid issues
+      }
+    });
+}
+
+function rewriteStyleUrls(style, proxyBase) {
+  return style.replace(/url\([^)]*\)/g, (match) => {
+    const urlMatch = match.match(/url\(["']?([^"')]+)["']?\)/);
+    if (urlMatch) {
+      try {
+        const url = new URL(urlMatch[1], 'http://fake/');
+        return `url(${proxyBase}${encodeURIComponent(url.href)})`;
+      } catch {}
+    }
+    return match;
+  });
+}
+
+function targetUrlFromBase(href, base) {
+  return new URL(base).origin + '/';  // Fake base for relative resolution
+}
