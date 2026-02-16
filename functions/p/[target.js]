@@ -2,7 +2,7 @@
 // Matches /p/https%3A%2F%2Fwww.intel.com (etc.)
 export default {
   async fetch(request, env, ctx) {
-    const APP_VERSION = 'v0.2';
+    let APP_VERSION = '0.0.0';
     const targetParam = ctx && ctx.params && ctx.params.target;
     if (!targetParam) {
       return new Response('Missing target URL', { status: 400 });
@@ -10,16 +10,33 @@ export default {
 
     const targetUrl = decodeURIComponent(targetParam);
     try {
-      // Create proxied request
+      // Try to read the deployed VERSION file so headers reflect the repo VERSION
+      try {
+        const vres = await fetch(new URL(request.url).origin + '/VERSION');
+        if (vres && vres.ok) {
+          APP_VERSION = (await vres.text()).trim() || APP_VERSION;
+        }
+      } catch (e) {}
+      // Create proxied request. Build headers carefully — don't forward Host or cookies
+      const outgoingHeaders = new Headers();
+      for (const [k, v] of request.headers) {
+        const key = k.toLowerCase();
+        // Skip headers that would make the request resolve to our proxy or leak client info
+        if (['host', 'cookie', 'content-length'].includes(key)) continue;
+        outgoingHeaders.set(k, v);
+      }
+      // Ensure sensible defaults
+      if (!outgoingHeaders.has('user-agent')) {
+        outgoingHeaders.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+      }
+      if (!outgoingHeaders.has('accept')) {
+        outgoingHeaders.set('Accept', '*/*');
+      }
+      outgoingHeaders.set('Referer', targetUrl);
+
       const proxyReq = new Request(targetUrl, {
         method: request.method,
-        headers: {
-          ...Object.fromEntries(request.headers.entries()),
-          'User-Agent': request.headers.get('User-Agent') || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': request.headers.get('Accept') || '*/*',
-          'Accept-Language': request.headers.get('Accept-Language') || 'en-US,en;q=0.9',
-          'Referer': targetUrl,
-        },
+        headers: outgoingHeaders,
         body: request.body,
         redirect: 'follow',
       });

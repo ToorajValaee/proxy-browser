@@ -42,7 +42,6 @@
     const goBtn = document.getElementById('go-btn');
     const frame = document.getElementById('frame');
     const PROXY_BASE = '/p/';  // Pages Function proxy path
-    const APP_VERSION = 'v0.2';
 
     const loadUrl = (inputUrl = 'https://www.google.com') => {
       try {
@@ -72,9 +71,11 @@
       if (statusEl) statusEl.textContent = 'Status: error';
     });
 
-    // Sync visible version badge
+    // Sync visible version badge from /VERSION
     const versionBadge = document.getElementById('version-badge');
-    if (versionBadge) versionBadge.textContent = APP_VERSION;
+    if (versionBadge) {
+      fetch('/VERSION').then(r => r.text()).then(t => { const v = (t||'').trim(); if (v) versionBadge.textContent = 'v' + v; }).catch(()=>{});
+    }
 
     // Load initial
     loadUrl(urlInput.value);

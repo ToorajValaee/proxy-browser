@@ -1,0 +1,5 @@
+#!/bin/sh
+# Simple pre-commit hook: bump VERSION automatically
+if [ -x "$(command -v node)" ]; then
+  node tools/bump-version.js && git add VERSION
+fi
