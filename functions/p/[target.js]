@@ -2,6 +2,7 @@
 // Matches /p/https%3A%2F%2Fwww.intel.com (etc.)
 export default {
   async fetch(request, env, ctx) {
+    const APP_VERSION = 'v0.2';
     const targetParam = ctx && ctx.params && ctx.params.target;
     if (!targetParam) {
       return new Response('Missing target URL', { status: 400 });
@@ -29,13 +30,17 @@ export default {
       if (contentType.startsWith('text/html') || contentType.includes('xml')) {
         // Rewrite HTML/CSS for proxy-relative links using the target site's base
         const proxyBase = new URL(request.url).origin + '/p/';
-        return htmlRewriter(proxyBase, targetUrl).transform(fetched);
+        const transformed = htmlRewriter(proxyBase, targetUrl).transform(fetched);
+        const headers = new Headers(transformed.headers);
+        headers.set('X-App-Version', APP_VERSION);
+        return new Response(transformed.body, { status: transformed.status, statusText: transformed.statusText, headers });
       }
 
       // Other assets (JS/CSS/img): Add CORS + passthrough
       const headers = new Headers(fetched.headers);
       headers.set('Access-Control-Allow-Origin', '*');
       headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      headers.set('X-App-Version', APP_VERSION);
       headers.delete('X-Frame-Options');
       return new Response(fetched.body, { status: fetched.status, statusText: fetched.statusText, headers });
 
