@@ -32,7 +32,15 @@ export default {
         const proxyBase = new URL(request.url).origin + '/p/';
         const transformed = htmlRewriter(proxyBase, targetUrl).transform(fetched);
         const headers = new Headers(transformed.headers);
+        // Remove framing/CSP headers that would prevent embedding
+        headers.delete('x-frame-options');
+        headers.delete('X-Frame-Options');
+        headers.delete('content-security-policy');
+        headers.delete('Content-Security-Policy');
+        headers.delete('content-security-policy-report-only');
+        headers.delete('Content-Security-Policy-Report-Only');
         headers.set('X-App-Version', APP_VERSION);
+        headers.set('Access-Control-Allow-Origin', '*');
         return new Response(transformed.body, { status: transformed.status, statusText: transformed.statusText, headers });
       }
 
@@ -74,6 +82,16 @@ function htmlRewriter(proxyBase, baseUrl) {
       element(element) {
         const style = element.getAttribute('style') || '';
         element.setAttribute('style', rewriteStyleUrls(style, proxyBase, baseUrl));
+      }
+    })
+    .on('meta[http-equiv="Content-Security-Policy"]', {
+      element(element) {
+        element.remove();
+      }
+    })
+    .on('meta[http-equiv="content-security-policy"]', {
+      element(element) {
+        element.remove();
       }
     })
     .on('base[href]', {
