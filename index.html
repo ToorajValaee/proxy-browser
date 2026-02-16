@@ -34,7 +34,8 @@
     <button id="go-btn">Go</button>
     <div id="version-badge" title="App version" style="margin-left:8px;padding:6px 10px;background:#eef2ff;color:#1e3a8a;border-radius:8px;font-weight:600;font-size:13px">v0.2</div>
   </div>
-  <iframe id="frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation allow-downloads"></iframe>
+  <iframe id="frame"></iframe>
+  <div id="status" style="position:fixed;right:12px;bottom:12px;background:#fff;padding:8px 12px;border-radius:8px;border:1px solid #e5e7eb;box-shadow:0 2px 6px rgba(0,0,0,0.06);font-size:13px">Status: idle</div>
 
   <script>
     const urlInput = document.getElementById('url-input');
@@ -59,9 +60,17 @@
     goBtn.type = 'button';
     goBtn.addEventListener('click', () => loadUrl(urlInput.value));
 
+
     // Debug hooks
-    frame.addEventListener('load', () => console.log('iframe loaded:', frame.src));
-    frame.addEventListener('error', (e) => console.error('iframe error', e));
+    const statusEl = document.getElementById('status');
+    frame.addEventListener('load', () => {
+      console.log('iframe loaded:', frame.src);
+      if (statusEl) statusEl.textContent = 'Status: loaded';
+    });
+    frame.addEventListener('error', (e) => {
+      console.error('iframe error', e);
+      if (statusEl) statusEl.textContent = 'Status: error';
+    });
 
     // Sync visible version badge
     const versionBadge = document.getElementById('version-badge');

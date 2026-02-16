@@ -84,6 +84,34 @@ function htmlRewriter(proxyBase, baseUrl) {
         element.setAttribute('style', rewriteStyleUrls(style, proxyBase, baseUrl));
       }
     })
+    // Remove common header/navigation elements to avoid duplicate address bars
+    .on('header', {
+      element(element) {
+        element.remove();
+      }
+    })
+    .on('nav', {
+      element(element) {
+        element.remove();
+      }
+    })
+    .on('*[role="banner"]', {
+      element(element) {
+        element.remove();
+      }
+    })
+    .on('*[id], *[class]', {
+      element(element) {
+        try {
+          const id = (element.getAttribute('id') || '').toLowerCase();
+          const cls = (element.getAttribute('class') || '').toLowerCase();
+          const suspects = ['header', 'topbar', 'navbar', 'masthead', 'toolbar', 'search', 'address', 'banner'];
+          for (const s of suspects) {
+            if (id.includes(s) || cls.includes(s)) { element.remove(); return; }
+          }
+        } catch (e) {}
+      }
+    })
     .on('meta[http-equiv="Content-Security-Policy"]', {
       element(element) {
         element.remove();
