@@ -52,8 +52,14 @@
       }
     };
 
-    urlInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') loadUrl(urlInput.value); });
+    // Use keydown (more reliable) and ensure button isn't a submit button
+    urlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadUrl(urlInput.value); });
+    goBtn.type = 'button';
     goBtn.addEventListener('click', () => loadUrl(urlInput.value));
+
+    // Debug hooks
+    frame.addEventListener('load', () => console.log('iframe loaded:', frame.src));
+    frame.addEventListener('error', (e) => console.error('iframe error', e));
 
     // Load initial
     loadUrl(urlInput.value);

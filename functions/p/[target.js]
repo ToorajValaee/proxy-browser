@@ -26,9 +26,10 @@ export default {
       const fetched = await fetch(proxyReq);
 
       const contentType = (fetched.headers.get('Content-Type') || '').toLowerCase();
-      if (contentType.startsWith('text/html') || contentType.includes('xml') || contentType.includes('text')) {
+      if (contentType.startsWith('text/html') || contentType.includes('xml')) {
         // Rewrite HTML/CSS for proxy-relative links using the target site's base
-        return htmlRewriter(targetUrl).transform(fetched);
+        const proxyBase = new URL(request.url).origin + '/p/';
+        return htmlRewriter(proxyBase, targetUrl).transform(fetched);
       }
 
       // Other assets (JS/CSS/img): Add CORS + passthrough
@@ -45,8 +46,7 @@ export default {
 };
 
 // HTML Rewriter: Rewrite links/src to proxy
-function htmlRewriter(baseUrl) {
-  const proxyBase = new URL(baseUrl).origin + '/p/';
+function htmlRewriter(proxyBase, baseUrl) {
   return new HTMLRewriter()
     .on('a[href], link[href], script[src], img[src], source[src], embed[src], iframe[src], form[action]', {
       element(element) {
